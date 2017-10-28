@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<!-- affinity group data, circle rotation, auto-resize svg image, chord function, configuration -->
+<title>Open Chord Example</title>
+<style>
+
+#visual {
+  font: 14px sans-serif;
+}
+
+.chord path {
+  fill-opacity: .67;
+  stroke: #000;
+  stroke-width: .5px;
+}
+
+
+@media only screen and (min-device-width: 320px) and (max-device-width: 568px) {
+  #visual {
+    -webkit-user-select: none;
+    font-size: 1.2em;
+  }
+}
+
+@media only screen and (min-device-width: 768px) and (max-device-width: 1024px) {
+  #visual { 
+	-webkit-user-select: none; 
+  }
+}
+</style>
+<body>
+<script src="http://d3js.org/d3.v3.min.js"></script>
+<script>
+d3.select("body").style("background-color", "#1d1e2a");
+
+var visual = document.getElementById("visual");
+
+// persons moving between Marin, Sonoma, Napa, SF, EB, SV and other regions
+//    [22.42,	0.00,	68.48,	0.00,	9.09,	0.00],
+//    [0.00,	44.81,	10.61,	34.20,	8.66,	1.73],
+//    [0.52,	0.24,	46.46,	21.56,	31.22,	0.00],
+//    [0.00,	0.80,	23.91,	49.36,	25.91,	0.02],
+//    [0.03,	0.24,	35.19,	26.27,	38.26,	0.00],
+//    [0.00,	63.16,	5.26,	10.53,	15.79,	5.26]
+var matrix = [ 
+    [121053, 0, 210524, 42, 18371, 3],
+    [1, 107090, 17463, 72357, 15354, 5116],
+    [209366, 17401, 802913, 249526, 372496, 761],
+    [53, 71889, 250176, 1007442, 456349, 2687],
+    [18450, 15326, 372337, 456613, 578891, 436],
+    [1, 5202, 796, 2691, 441, 346]
+];
+
+var array = ["ALCATEL","HUAWEI","LG","MOTOROLA","SAMSUNG","SONY"];
+
+var rotation = 0;
+
+var chord_options = {
+    "gnames": array,
+    "rotation": rotation,
+    "colors": ["#2fa192","#800080","#ffbf00","#333399","#87ceff","#ffd92f","#e5c494"]
+};
+
+    function Chord(container, options, matrix) {
+
+        // initialize the chord configuration variables
+        var config = {
+            width: 640,
+            height: 560,
+            rotation: 0,
+            textgap: 26,
+            colors: ["#66c2a5","#fc8d62","#8da0cb","#e78ac3","#a6d854","#ffd92f","#e5c494"]
+        };
+        
+        // add options to the chord configuration object
+        if (options) {
+            extend(config, options);
+        }
+        
+        // set chord visualization variables from the configuration object
+        var offset = Math.PI * config.rotation,
+            width = config.width,
+            height = config.height,
+            textgap = config.textgap
+            colors = config.colors;
+        
+        // set viewBox and aspect ratio to enable a resize of the visual dimensions 
+        var viewBoxDimensions = "0 0 " + width + " " + height,
+            aspect = width / height;
+        
+        if (config.gnames) {
+            gnames = config.gnames;
+        } else {
+            // make a list of names
+            gnames = [];
+            for (var i=97; i<matrix.length; i++) {
+                gnames.push(String.fromCharCode(i));
+            }
+        }
+
+        // start the d3 magic
+        var chord = d3.layout.chord()
+            .padding(.05)
+            .sortSubgroups(d3.descending)
+            .matrix(matrix);
+
+        var innerRadius = Math.min(width, height) * .31,
+            outerRadius = innerRadius * 1.1;
+
+        var fill = d3.scale.ordinal()
+            .domain(d3.range(matrix.length-1))
+            .range(colors);
+    
+        var svg = d3.select("body").append("svg")
+            .attr("id", "visual")
+            .attr("viewBox", viewBoxDimensions)
+            .attr("preserveAspectRatio", "xMinYMid")    // add viewBox and preserveAspectRatio
+            .attr("width", width)
+            .attr('fill', '#939393')
+            .attr("height", height)
+          .append("g")
+            .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")");
+
+        var g = svg.selectAll("g.group")
+            .data(chord.groups)
+          .enter().append("svg:g")
+            .attr("class", "group");
+
+        g.append("svg:path")
+            .style("fill", function(d) { return fill(d.index); })
+            .style("stroke", function(d) { return fill(d.index); })
+            .attr("id", function(d, i) { return "group" + d.index; })
+            .attr("d", d3.svg.arc().innerRadius(innerRadius).outerRadius(outerRadius).startAngle(startAngle).endAngle(endAngle))
+            .on("mouseover", fade(.1))
+            .on("mouseout", fade(1));
+
+        g.append("svg:text")
+            .each(function(d) {d.angle = ((d.startAngle + d.endAngle) / 2) + offset; })
+            .attr("dy", ".35em")
+            .attr("text-anchor", function(d) { return d.angle > Math.PI ? "end" : null; })
+            .attr("transform", function(d) {
+                return "rotate(" + (d.angle * 180 / Math.PI - 90) + ")"
+                    + "translate(" + (outerRadius + textgap) + ")"
+                    + (d.angle > Math.PI ? "rotate(180)" : "");
+              })
+            .text(function(d) { return gnames[d.index]; });
+
+        svg.append("g")
+            .attr("class", "chord")
+          .selectAll("path")
+            .data(chord.chords)
+          .enter().append("path")
+            .attr("d", d3.svg.chord().radius(innerRadius).startAngle(startAngle).endAngle(endAngle))
+            .style("fill", function(d) { return fill(d.source.index); })
+            .style("opacity", 0.65)
+            .style("stroke-width", 0)
+          .append("svg:title")
+            .style("bakcground", "black")
+            .text(function(d) { 
+                return  d.source.value + " recomendaciones de " + gnames[d.source.index] + " cambian a " + gnames[d.target.index]; 
+            });
+    
+        // helper functions start here
+        
+        function startAngle(d) {
+            return d.startAngle + offset;
+        }
+
+        function endAngle(d) {
+            return d.endAngle + offset;
+        }
+        
+        function extend(a, b) {
+            for( var i in b ) {
+                a[ i ] = b[ i ];
+            }
+        }
+
+        // Returns an event handler for fading a given chord group.
+        function fade(opacity) {
+            return function(g, i) {
+                svg.selectAll(".chord path")
+                    .filter(function(d) { return d.source.index != i && d.target.index != i; })
+                    .transition()
+                    .style("opacity", opacity);
+            };
+        }
+        
+        
+        window.onresize = function() {
+            var targetWidth = (window.innerWidth < width)? window.innerWidth : width;
+            
+            var svg = d3.select("#visual")
+                .attr("width", targetWidth)
+                .attr("height", targetWidth / aspect);
+        }
+
+        
+    }
+
+window.onload = function() {
+    Chord(visual, chord_options, matrix);
+}
+
+d3.select(self.frameElement).style("height", "600px");
+
+</script>
+</body>
+</html>
