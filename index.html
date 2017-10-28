@@ -128,6 +128,7 @@ var chord_options = {
 
         g.append("svg:path")
             .style("fill", function(d) { return fill(d.index); })
+            .style("stroke-width", function(d) { return Math.max(1, d.dy); })
             .style("stroke", function(d) { return fill(d.index); })
             .attr("id", function(d, i) { return "group" + d.index; })
             .attr("d", d3.svg.arc().innerRadius(innerRadius).outerRadius(outerRadius).startAngle(startAngle).endAngle(endAngle))
@@ -207,3 +208,4 @@ d3.select(self.frameElement).style("height", "600px");
 </script>
 </body>
 </html>
+
